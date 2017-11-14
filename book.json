@@ -1,0 +1,15 @@
+{
+  "title": "GraphQL Language Specification中文版",
+  "structure": {
+    "readme": "README.md"
+  },
+  "variables": {
+    "authors": [
+      {
+        "name": "Phoenix Xu",
+        "email": "xusiyuan841028@gmail.com"
+      }
+    ]
+  },
+  "language": "zh"
+}
