@@ -37,30 +37,31 @@ GraphQL通过`执行(execution)`从一个`请求(request)`中生成一个`响应
 
 ### 6.1 执行请求 Executing Requests
 
-在执行一个请求之前，执行器\(executor）需要一个已经被解析过的文档（按本规范”Query Language”章节中的定义），如果文档定义了多个操作，还需要一个选定的操作名称，否则文档仅能包含唯一一个操作。请求的结果，由依照以下”Executing Operations”章节规范执行该操作的结果决定。  
-    ::ExecuteRequest\(schema, document, operationName, variableValues, initialValue\)::：  
-        1.`operation`设为`GetOperation(document, operationName)`的结果  
-        2. `coercedVariableValues`设为`CoerceVariableValues(schema, operation, variableValues)`的结果  
-        3. 如果`operation`是一个查询操作
+在执行一个请求之前，执行器\(executor）需要一个已经被解析过的文档（按本规范”Query Language”章节中的定义），如果文档定义了多个操作，还需要一个选定的操作名称，否则文档仅能包含唯一一个操作。请求的结果，由依照以下”Executing Operations”章节规范执行该操作的结果决定。
 
-* 返回`ExecuteQuery(operation, schema, coercedVariableValues, initialValue)`
-  1. 否则`operation`是一个修改操作
-* 返回`ExecuteMutation(operation, schema, coercedVariableValues, initialValue)`
+`ExecuteRequest(schema, document, operationName, variableValues, initialValue)`：
 
-  ::GetOperation\(document, operationName\)::：  
-  1. 如果`operationName`是`null`
+1. `operation`设为`GetOperation(document, operationName)`的结果
+2. `coercedVariableValues`设为`CoerceVariableValues(schema, operation, variableValues)`的结果
+3. 如果`operation`是一个查询操作返回：
+   1. `ExecuteQuery(operation, schema, coercedVariableValues, initialValue)`
+4. 否则`operation`是一个修改操作：
+   1. 返回`ExecuteMutation(operation, schema, coercedVariableValues, initialValue)`
 
-* 如果文档仅包含一个操作
-  * 返回该操作
-* 否则产生一个需要`operationName`的查询错误
-  1. 否则
-* `operation`设为文档中命名为`operationName`的操作
-* 如果`operation`没有找到，产生一个查询错误
-* 返回`operation`
+`GetOperation(document, operationName)`：
+
+1. 如果`operationName`是`null`：
+   1. 如果文档仅包含一个操作
+      1. 返回该操作
+   2. 否则产生一个需要`operationName`的查询错误
+2. 否则
+   1. `operation`设为文档中命名为`operationName`的操作
+   2. 如果`operation`没有找到，产生一个查询错误
+   3. 返回`operation`
 
 #### 6.1.1 验证请求
 
-按照“Validation”章节中的解释，只有通过所有验证规则的请求才会被执行。如果验证错误是已知的，应该记录在响应的`errors`列表字段中，而请求必须失败而不执行。
+按照“Validation”章节中的解释，只有通过所有验证规则的请求才会被执行。如果验证错误是已知的，应该记录在响应的`errors`列表字段中，而请求必须不执行且失败。
 
 典型地，验证在执行前的请求环境中立即被执行，但如果一个请求和之前验证过的请求完全一样的话，一个GraphQL服务可能跳过立即的验证来执行一个请求。一个GraphQL服务应该仅执行那些之前已经通过验证且没有修改过的请求。
 
@@ -68,75 +69,79 @@ GraphQL通过`执行(execution)`从一个`请求(request)`中生成一个`响应
 
 #### 6.1.2 变量值的强制类型转换
 
-如果操作定义了变量，那么这些变量的值，需要使用变量声明类型的输入转换规则进行转换。如果在转换过程中碰到任何的查询错误，则操作失败而不执行。  
-    ::CoerceVariableValues\(schema, operation, variableValues\)::：  
-        1. `coercedValues`设为一个空的无序Map  
-        2. `variableDefinitions`设为`operation`定义的变量  
-        3. 对`variableDefinitions`中的每个`variableDefinition`  
-            1. `variableName`设为`variableDefinition`的名称  
-            2. `variableType`设为`variableDefinition`预期的类型  
-            3. `defaultValue`设为`variableDefinition`的默认值  
-            4. `value`设为`variableValues`中名称`variableName`对应的值  
-            5. 如果`value`不存在（`variableValues`中没有提供）  
-                1. 如果`defaultValue`存在（包括`null`）  
-                    1. 添加一条记录到`coercedValues`,名称为`variableName`，值为`defaultValue`   
-                2. 否则，如果`variableType`是一个Non-Nullable类型，抛出一个查询错误  
-                3. 否则，继续处理下一个变量定义  
-            6. 否则，如果`value`不能按照`variableType`的输入转换规则进行类型转换，抛出一个查询错误  
-            7. `coercedValue`设为`value`按照`variableType`的输入转换规则进行类型转换的结果  
-            8. 添加一条记录到`coercedValues`,名称为`variableName`，值为`coercedValue`   
-        4. 返回`coercedValues`
+如果操作定义了变量，那么这些变量的值，需要使用变量声明类型的输入转换规则进行转换。如果在转换过程中碰到任何的查询错误，则操作不执行且失败。  
+`CoerceVariableValues(schema, operation, variableValues)`：
 
-> NOTE 该算法和::CoerceArgumentValues\(\)::非常类似
+1. `coercedValues`设为一个空的无序Map
+2. `variableDefinitions`设为`operation`定义的变量
+3. 对`variableDefinitions`中的每个`variableDefinition`
+   1. `variableName`设为`variableDefinition`的名称
+   2. `variableType`设为`variableDefinition`预期的类型
+   3. `defaultValue`设为`variableDefinition`的默认值
+   4. `value`设为`variableValues`中名称`variableName`对应的值
+   5. 如果`value`不存在（`variableValues`中没有提供）
+      1. 如果`defaultValue`存在（包括`null`）
+         1. 添加一条记录到`coercedValues`,名称为`variableName`，值为`defaultValue`
+      2. 否则，如果`variableType`是一个Non-Nullable类型，抛出一个查询错误
+      3. 否则，继续处理下一个变量定义
+   6.  否则，如果`value`不能按照`variableType`的输入转换规则进行类型转换，抛出一个查询错误
+   7. `coercedValue`设为`value`按照`variableType`的输入转换规则进行类型转换的结果
+   8. 添加一条记录到`coercedValues`,名称为`variableName`，值为`coercedValue`
+4. 返回`coercedValues`
+
+> NOTE 该算法和`CoerceArgumentValues()`非常类似
 
 ### 6.2 执行操作 Executing Operations
 
 按照本规范的”Type System”章节描述的类型系统，必须提供一个查询（Query）根对象类型。如果支持修改（Mutation），还要提供一个修改根对象类型。
 
-一个初始值可以在执行一个查询时提供：  
-    ::ExecuteQuery\(query, schema, variableValues, initialValue\)::：  
-        1. `queryType`设为`schema`的根查询（Query）类型  
-        2. 断言：`queryType`是一个Object类型  
-        3. `selectionSet`设为`query`中的顶级选择集（Selection Set）  
-        4. `data`设为正常运行（允许并行化）::ExecuteSelectionSet\(selectionSet, queryType, initialValue, variableValues\)::的结果  
-        5. ? `errors`设为执行选择集时产生的任何`errors`字段  
-        6. 返回一个无序Map包含`data`和`errors`
+一个初始值可以在执行一个查询时提供：
+
+`ExecuteQuery(query, schema, variableValues, initialValue)`：
+
+1. `queryType`设为`schema`的根查询（Query）类型
+2. 断言：`queryType`是一个Object类型
+3. `selectionSet`设为`query`中的顶级选择集（Selection Set）
+4. `data`设为正常运行（允许并行化）`ExecuteSelectionSet(selectionSet, queryType, initialValue, variableValues)`的结果
+5. `errors`设为执行选择集时产生的任何`errors`字段[^1]
+6. 返回一个无序Map包含`data`和`errors`
 
 如果操作是一个修改，操作的结果是在修改根对象类型上执行操作的顶级选择集的结果。该选择集应该是串行化执行的。
 
 在一个修改操作中，顶级字段会在底层的数据系统中产生副作用（side-effect）。这些修改的串行化执行避免了产生这些副作用时出现竞态条件（race condition）。  
-    ::ExecuteMutation\(mutation, schema, variableValues, initialValue\)::：  
-        1. `mutationType`设为`schema`的根Mutation类型  
-        2. 断言：`mutationType`是一个Object类型  
-        3. `selectionSet`设为`mutation`中的顶级选择集（Selection Set）  
-        4.  `data`设为正常运行（允许并行化）::ExecuteSelectionSet\(selectionSet, mutationType, initialValue, variableValues\)::的结果
+`ExecuteMutation(mutation, schema, variableValues, initialValue)`：
 
-ExecuteMutation\(mutation, schema, variableValues, initialValue\)  
-Let mutationType be the root Mutation type in schema.  
-Assert: mutationType is an Object type.  
-Let selectionSet be the top level Selection Set in mutation.  
-Let data be the result of running ExecuteSelectionSet\(selectionSet, mutationType, initialValue, variableValues\) serially.  
-Let errors be any field errors produced while executing the selection set.  
-Return an unordered map containing data and errors.  
-6.3Executing Selection Sets
+1. `mutationType`设为`schema`的根Mutation类型
+2. 断言：`mutationType`是一个Object类型
+3. `selectionSet`设为`mutation`中的顶级选择集（Selection Set）
+4. `data`设为正常运行（允许并行化）`ExecuteSelectionSet(selectionSet, mutationType, initialValue, variableValues)`的结果
+5. `errors`设为执行选择集时产生的任何`errors`字段[^1]
+6. 返回一个无序Map包含`data`和`error`
 
-To execute a selection set, the object value being evaluated and the object type need to be known, as well as whether it must be executed serially, or may be executed in parallel.
+### 6.3 执行选择集 Executing Selection Sets
 
-First, the selection set is turned into a grouped field set; then, each represented field in the grouped field set produces an entry into a response map.
+无论是并行还是串行执行一个选择，都需要知道被求值的对象的值和类型。
 
-ExecuteSelectionSet\(selectionSet, objectType, objectValue, variableValues\)  
-Let groupedFieldSet be the result of CollectFields\(objectType, selectionSet, variableValues\).  
-Initialize resultMap to an empty ordered map.  
-For each groupedFieldSet as responseKey and fields:  
-Let fieldName be the name of the first entry in fields. Note: This value is unaffected if an alias is used.  
-Let fieldType be the return type defined for the field fieldName of objectType.  
-If fieldType is null:  
-Continue to the next iteration of groupedFieldSet.  
-Let responseValue be ExecuteField\(objectType, objectValue, fields, fieldType, variableValues\).  
-Set responseValue as the value for responseKey in resultMap.  
-Return resultMap.  
-responseMap is ordered by which fields appear first in the query. This is explained in greater detail in the Field Collection section below.  
-6.3.1Normal and Serial Execution
+首先，选择集被转成一个分组的字段集，然后分组的字段集中每个被描述的字段都会生成一条记录存储到响应Map。
+
+`ExecuteSelectionSet(selectionSet, objectType, objectValue, variableValues)`:
+
+1. `groupedFieldSet`设为`CollectFields(objectType, selectionSet, variableValues)`的结果
+2. 初始化`resultMap`为一个空的无序Map
+3. 取`groupedFieldSet`中的每一条记录，名字和值分别为`responseKey`和`fields`：
+   1. `fieldName`设为`fields`的第一条记录的名字。注意：如果使用了别名，该值不会受影响。
+   2. fieldType设为 `objectType`中`fieldName`的值指定的字段定义返回类型
+   3. 如果`fieldType`是**null**：
+      1. 继续处理`groupedFieldSet`中的下一条记录
+   4. `responseValue`设为执行`ExecuteField(objectType, objectValue, fields, fieldType, variableValues)`
+   5. 在`resultMap`中添加一条记录，名字为`responseKey`，值为`responseValue`
+4. 返回`resultMap`
+
+> NOTE `responseMap`是按字段出现在第一次出现在查询中的次序排序。在“6.3.2 字段集合”章节会有更详细的解释。
+
+#### 6.3.1 标准执行和串行执行 Normal and Serial Execution
+
+通常执行器能够执行一个分组的字段集内字段，而忽略字段集合
 
 Normally the executor can execute the entries in a grouped field set in whatever order it chooses \(often in parallel\). Because the resolution of fields other than top‐level mutation fields must always be side effect‐free and idempotent, the execution order must not affect the result, and hence the server has the freedom to execute the field entries in whatever order it deems optimal.
 
@@ -391,4 +396,6 @@ If all fields from the root of the request to the source of the error return Non
 # graphql
 
 
+
+[^1]: 待修改
 
