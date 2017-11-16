@@ -84,7 +84,7 @@ GraphQL通过`执行(execution)`从一个`请求(request)`中生成一个`响应
          1. 添加一条记录到`coercedValues`,名称为`variableName`，值为`defaultValue`
       2. 否则，如果`variableType`是一个Non-Nullable类型，抛出一个查询错误
       3. 否则，继续处理下一个变量定义
-   6.  否则，如果`value`不能按照`variableType`的输入转换规则进行类型转换，抛出一个查询错误
+   6. 否则，如果`value`不能按照`variableType`的输入转换规则进行类型转换，抛出一个查询错误
    7. `coercedValue`设为`value`按照`variableType`的输入转换规则进行类型转换的结果
    8. 添加一条记录到`coercedValues`,名称为`variableName`，值为`coercedValue`
 4. 返回`coercedValues`
@@ -141,10 +141,20 @@ GraphQL通过`执行(execution)`从一个`请求(request)`中生成一个`响应
 
 #### 6.3.1 标准执行和串行执行 Normal and Serial Execution
 
-通常执行器能够执行一个分组的字段集内字段，而忽略字段集合
+通常执行器能够按其选择的任何次序（通常是并行）执行一个分组字段集内所有字段查询。因为字段的解析和顶层的修改字段不同，必须总是不受副作用的影响且幂等，执行次序不应该影响执行结果，而且因此服务器要有选择其认为最优的次序来执行字段查询的自由。
 
-Normally the executor can execute the entries in a grouped field set in whatever order it chooses \(often in parallel\). Because the resolution of fields other than top‐level mutation fields must always be side effect‐free and idempotent, the execution order must not affect the result, and hence the server has the freedom to execute the field entries in whatever order it deems optimal.
+例如，指定以下分组字段集正常地执行：
 
+```
+{
+  birthday {
+    month
+  }
+  address {
+    street
+  }
+} 
+```
 For example, given the following grouped field set to be executed normally:
 
 {  
@@ -396,6 +406,4 @@ If all fields from the root of the request to the source of the error return Non
 # graphql
 
 
-
-[^1]: 待修改
 
