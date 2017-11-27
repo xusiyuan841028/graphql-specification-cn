@@ -155,16 +155,9 @@ GraphQL通过`执行(execution)`从一个`请求(request)`中生成一个`响应
   }
 } 
 ```
-For example, given the following grouped field set to be executed normally:
 
-{  
-  birthday {  
-    month  
-  }  
-  address {  
-    street  
-  }  
-}  
+合法的GraphQL执行
+
 A valid GraphQL executor can resolve the four fields in whatever order it chose \(however of course birthday must be resolved before month, and address before street\).
 
 When executing a mutation, the selections in the top most selection set will be executed in serial order.
